@@ -1,2 +1,2 @@
 # jvm-metrics-ws
-A RESTful Web Service exposing JVM metrics
+A prototype RESTful Web Service exposing JVM metrics. If it takes off I'll refactor/add tests later. 
