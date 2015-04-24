@@ -1,35 +1,47 @@
 package controllers
 
-import java.lang.management.{ManagementFactory, MemoryMXBean}
+import management._
 import javax.management.MBeanServerConnection
-import javax.management.remote.{JMXConnectorFactory, JMXServiceURL}
 
-import play.api.mvc._
+import controllers.Domain.JVMMetrics
+import controllers.JMX._
+import controllers.JSONImplicits._
 import play.api.libs.json._
+import play.api.mvc._
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+
 
 object Application extends Controller {
 
   lazy val jmxAddresses = mutable.MutableList("10.1.28.36:7214")
 
 
-  def jxmConnection(address:String) : MBeanServerConnection = {
-    JMXConnectorFactory.connect(new JMXServiceURL("service:jmx:rmi:///jndi/rmi://%s/jmxrmi".format(address)), null).getMBeanServerConnection
+
+
+  def jvm(host:String) = Action.async {
+    jxmConnection(host).
+      flatMap(connection => jvmMetrics(connection)).map(metrics => Ok(metrics.toJson).as("application/json"))
   }
 
-  def getMemory(connection: MBeanServerConnection) : MemoryMXBean = {
-    ManagementFactory.newPlatformMXBeanProxy(connection, ManagementFactory.MEMORY_MXBEAN_NAME,
-      classOf[MemoryMXBean])
+  def jvmMetrics(connection:MBeanServerConnection) : Future[JVMMetrics] = {
+    Future.sequence(
+      List(
+        JMX.getBean(connection, ManagementFactory.MEMORY_MXBEAN_NAME, classOf[MemoryMXBean]),
+        JMX.getBean(connection, ManagementFactory.THREAD_MXBEAN_NAME, classOf[ThreadMXBean]),
+        JMX.getBean(connection, ManagementFactory.OPERATING_SYSTEM_MXBEAN_NAME, classOf[OperatingSystemMXBean])
+      )
+    ).map(beans => JVMMetrics(findBean(beans, classOf[MemoryMXBean]), findBean(beans, classOf[ThreadMXBean]), findBean(beans, classOf[OperatingSystemMXBean])))
   }
 
-  def json(host:String, memoryMXBean: MemoryMXBean) = Json.obj("host" -> host, "used" -> memoryMXBean.getHeapMemoryUsage.getUsed)
+  def findBean[T](objects:List[PlatformManagedObject], clazz:Class[T]) : Option[T] = objects.find(clazz.isInstance(_)).map(_.asInstanceOf[T])
 
 
-  def jvm(host:String) = Action {
-    val j = json(host, getMemory(jxmConnection(host)))
-    Ok(j).as("application/json")
-  }
+
+
+
 
   def hostsAsJson(jmxAddresses:mutable.MutableList[String]) : JsArray =
     jmxAddresses.map(address => Json.obj("address" -> address)).foldLeft(Json.arr())((array, json) => array ++ Json.arr(json))
