@@ -11,30 +11,27 @@ object JSONImplicits {
   implicit class JVMMetricsJson(metrics:JVMMetrics){
     def toJson = {
 
-      //TODO Handle None
+      //TODO Use a more flexible way to build the xml taking advantage of None
       val heapMemory = metrics.memoryBean.get.getHeapMemoryUsage
-      val heap = Json.obj("heap" -> (Json.obj("init" -> heapMemory.getInit, "used" -> heapMemory.getUsed, "commited" -> heapMemory.getCommitted, "max" -> heapMemory.getMax)))
+      val threads = metrics.threadMXBean.get
+      val os = metrics.osMXBean.get
 
-      val threads = metrics.threadMXBean
-
-      val thread = Json.obj("thread" -> Json.obj("count" -> threads.get.getThreadCount))
-
-      heap
-
-
-    }
+      val json = Json.obj(
+        "os" -> Json.obj("name" -> os.getName, "arch" -> os.getArch, "processors" -> os.getAvailableProcessors, "version" -> os.getVersion),
+        "heap" -> (Json.obj("init" -> heapMemory.getInit, "used" -> heapMemory.getUsed, "commited" -> heapMemory.getCommitted, "max" -> heapMemory.getMax)),
+        "thread" -> Json.obj("thread" -> Json.obj("count" -> threads.getThreadCount)),
+        "timestamp" -> System.nanoTime()
+      )
+      json
   }
-
-
-  /**
-   *   private final long init;
-    private final long used;
-    private final long committed;
-    private final long max;
-   */
-
-  //def json(host:String, memoryMXBean: MemoryMXBean) = Json.obj("host" -> host, "used" -> memoryMXBean.getHeapMemoryUsage.getUsed)
-
-
-
+  }
 }
+
+
+
+
+
+
+
+
+
