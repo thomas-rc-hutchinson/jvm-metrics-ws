@@ -1,5 +1,9 @@
 package controllers
 
+import management.MemoryMXBean
+import management.OperatingSystemMXBean
+import management.ThreadMXBean
+
 import controllers.Domain.JVMMetrics
 import play.api.libs.json.Json
 import play.api.libs.json.Json.JsValueWrapper
@@ -12,34 +16,30 @@ object JSONImplicits {
   implicit class JVMMetricsJson(metrics:JVMMetrics){
     def toJson = {
 
-      //TODO Use a more flexible way to build the xml taking advantage of None
-      val osJson  = metrics.osMXBean.
-        map[(String, JsValueWrapper)](os => "os" ->
-        Json.obj("name" -> os.getName, "arch" -> os.getArch, "processors" -> os.getAvailableProcessors, "version" -> os.getVersion))
-
-
-      val heapJson = metrics.memoryBean.
-        map[(String, JsValueWrapper)](heapMemory => "heap" ->
-        (Json.obj("init" -> heapMemory.getHeapMemoryUsage.getInit,
-          "used" -> heapMemory.getHeapMemoryUsage.getUsed, "commited" -> heapMemory.getHeapMemoryUsage.getCommitted,
-          "max" -> heapMemory.getHeapMemoryUsage.getMax)))
-
-      val threadsJson = metrics.threadMXBean.
-        map[(String, JsValueWrapper)](threads => "thread" -> Json.obj("thread" -> Json.obj("count" -> threads.getThreadCount)))
-
-
-      //filter out beans that could not be retrieved for whatever reason
-      val jsonObjs = List(osJson, heapJson, threadsJson).filter(_.isDefined).map(_.get)
-
-
       val json = Json.obj(
-        jsonObjs : _*
+        List(
+            metrics.osMXBean.map(osToJson),
+            metrics.memoryBean.map(heapToJson),
+            metrics.threadMXBean.map(threadToJson))
+          .filter(_.isDefined).map(_.get) : _*
       )
       json
   }
 
+  def osToJson(os: OperatingSystemMXBean) : (String, JsValueWrapper) =
+    "os" -> Json.obj("name" -> os.getName, "arch" -> os.getArch, "processors" -> os.getAvailableProcessors, "version" -> os.getVersion)
 
-}
+  def heapToJson(memory: MemoryMXBean) : (String, JsValueWrapper) =
+    "heap" -> (Json.obj("init" -> memory.getHeapMemoryUsage.getInit,
+        "used" -> memory.getHeapMemoryUsage.getUsed, "commited" -> memory.getHeapMemoryUsage.getCommitted,
+        "max" -> memory.getHeapMemoryUsage.getMax))
+
+  def threadToJson(threads: ThreadMXBean) : (String, JsValueWrapper) =
+    "thread" -> Json.obj("thread" -> Json.obj("count" -> threads.getThreadCount))
+
+
+
+}}
 
 
 
