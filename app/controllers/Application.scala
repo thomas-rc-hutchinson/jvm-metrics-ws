@@ -16,12 +16,14 @@ import scala.concurrent.Future
 
 object Application extends Controller {
 
-  lazy val jmxAddresses = mutable.MutableList("")
 
   def jvm(host:String) = Action.async {
-    jxmConnection(host).
+    jxmConnection(lookup(host)).
       flatMap(connection => jvmMetrics(connection)).map(metrics => Ok(metrics.toJson).as("application/json"))
   }
+
+  def lookup(host:String) = Hosts.get(host).getOrElse(Host(host, host)).address
+
 
   def jvmMetrics(connection:MBeanServerConnection) : Future[JVMMetrics] = {
     Future.sequence(
@@ -46,21 +48,15 @@ object Application extends Controller {
 
 
   def hosts = Action {
-    Ok(hostsAsJson(jmxAddresses)).as("application/json")
+    Ok(Hosts.get.toJson).as("application/json")
   }
 
 
-  def getAddress(json:JsValue) = json(0).\("address").as[String]
-
-
-  //TODO Improve approach
-  def addHost(any:Option[JsValue]) : mutable.MutableList[String] = {
-    jmxAddresses ++= mutable.MutableList(getAddress(any.get))
-    jmxAddresses
-  }
+  //we don't have to implicitly call this. maybe I went to far, we will see ;)
+  implicit def parseRequest(json:JsValue) = Host(json(0).\("alias").as[String], json(0).\("address").as[String])
 
   def add = Action {
-    implicit request => Ok(hostsAsJson(addHost(request.body.asJson))).as("application/json")
+    implicit request => Ok(Hosts.add(request.body.asJson.get).toJson).as("application/json")
   }
 
 }

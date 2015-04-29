@@ -5,6 +5,7 @@ import management.OperatingSystemMXBean
 import management.ThreadMXBean
 
 import controllers.Domain.JVMMetrics
+import play.api.libs.json.JsArray
 import play.api.libs.json.Json
 import play.api.libs.json.Json.JsValueWrapper
 
@@ -21,7 +22,7 @@ object JSONImplicits {
             metrics.osMXBean.map(osToJson),
             metrics.memoryBean.map(heapToJson),
             metrics.threadMXBean.map(threadToJson))
-          .filter(_.isDefined).map(_.get) : _*
+          .filter(_.isDefined).map(_.get) ++ List[(String, JsValueWrapper)]("timestamp" -> System.nanoTime()): _*
       )
       json
   }
@@ -35,11 +36,21 @@ object JSONImplicits {
         "max" -> memory.getHeapMemoryUsage.getMax))
 
   def threadToJson(threads: ThreadMXBean) : (String, JsValueWrapper) =
-    "thread" -> Json.obj("thread" -> Json.obj("count" -> threads.getThreadCount))
+    "thread" -> Json.obj("count" -> threads.getThreadCount)
+}
+
+  implicit class HostsJson(hosts : List[Host]){
+     def toJson : JsArray =
+       hosts.map(address => address.toJson).
+         foldLeft(Json.arr())((array, json) => array ++ Json.arr(json))
+  }
+
+  implicit class HostJson(host : Host){
+    def toJson = Json.obj("alias" -> host.alias, "address" -> host.address)
+  }
 
 
-
-}}
+}
 
 
 
