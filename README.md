@@ -29,6 +29,12 @@ where host is either alias (need to have previously used PUT /jvm) or the ip and
     "timestamp": 24834582890583
 }
 
+###GET /ws/jvm/:host
+
+WebSockets API. JVM state is continously pushed to the client.
+
+See /jvm/:host for response.
+
 
 
 ### GET /jvm 
