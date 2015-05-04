@@ -6,6 +6,9 @@ GET        /jvm/:host           controllers.Application.jvm(host:String)
 GET        /jvm                 controllers.Application.hosts
 PUT        /jvm                 controllers.Application.add
 
+
+GET        /ws/jvm/:host              controllers.Application.websocketsjvm(host:String)
+
 # Map static resources from the /public folder to the /assets URL path
 GET        /assets/*file        controllers.Assets.at(path="/public", file)
 
